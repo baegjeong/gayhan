@@ -10,7 +10,7 @@ app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MODEL_NAME = "gemini-2.0-flash"
+MODEL_NAME = "gemini-1.5-flash"
 
 RESUME_PROMPT_TEMPLATE = """你是一位資深人力資源顧問與履歷撰寫專家。請根據以下使用者提供的資訊，撰寫一份專業、具說服力的履歷內容。
 
