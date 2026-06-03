@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 專業履歷生成器</title>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans TC"', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            card: '0 4px 6px -1px rgb(0 0 0 / 0.06), 0 10px 24px -4px rgb(79 70 229 / 0.12)',
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    .bg-grid {
+      background-image:
+        linear-gradient(to right, rgb(148 163 184 / 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgb(148 163 184 / 0.08) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    .blob {
+      filter: blur(64px);
+      opacity: 0.45;
+      pointer-events: none;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .float-icon {
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up {
+      animation: fade-up 0.45s ease-out forwards;
+    }
+    #copy-toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+    #resume-output.prose h2 {
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 0.35em;
+    }
+    #resume-output.prose ul > li::marker {
+      color: #6366f1;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased relative overflow-x-hidden">
+  <!-- Decorative background -->
+  <div class="fixed inset-0 bg-grid -z-10" aria-hidden="true"></div>
+  <div class="blob fixed -top-24 -right-24 w-80 h-80 rounded-full bg-indigo-300 -z-10" aria-hidden="true"></div>
+  <div class="blob fixed bottom-0 -left-32 w-96 h-96 rounded-full bg-blue-200 -z-10" aria-hidden="true"></div>
+
+  <!-- Header -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div
+            class="shrink-0 flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-indigo-300/40"
+          >
+            <i class="fas fa-wand-magic-sparkles text-lg sm:text-xl"></i>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight truncate">
+              ✨ AI 專業履歷生成器
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-0.5 hidden sm:block">
+              繁體中文 · STAR 原則 · 由 Google Gemini 驅動
+            </p>
+          </div>
+        </div>
+        <div class="hidden md:flex items-center gap-2 text-xs text-slate-500 shrink-0">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            即時生成
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+      <!-- Left: Form -->
+      <section class="bg-white rounded-xl shadow-lg shadow-card border border-slate-100/80 p-6 sm:p-8">
+        <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+          <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 text-indigo-600 ring-1 ring-indigo-100/80">
+            <i class="fas fa-pen-to-square text-sm"></i>
+          </span>
+          <div>
+            <h2 class="text-lg font-semibold text-slate-800">填寫您的資訊</h2>
+            <p class="text-xs text-slate-500 mt-0.5">欄位皆為必填，資訊越完整履歷越精準</p>
+          </div>
+        </div>
+
+        <form id="resume-form" class="space-y-5" novalidate>
+          <!-- Target role -->
+          <div>
+            <label for="target_role" class="block text-sm font-medium text-slate-700 mb-2">
+              目標職位
+              <span class="text-red-500" aria-hidden="true">*</span>
+            </label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                <i class="fas fa-briefcase text-sm"></i>
+              </span>
+              <input
+                type="text"
+                id="target_role"
+                name="target_role"
+                required
+                autocomplete="organization-title"
+                placeholder="例如：資深前端工程師、行銷經理"
+                class="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-10 pr-4 py-3 text-slate-800 placeholder-slate-400 transition focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/30 outline-none"
+              />
+            </div>
+          </div>
+
+          <!-- Core skills -->
+          <div>
+            <label for="core_skills" class="block text-sm font-medium text-slate-700 mb-2">
+              核心技能
+              <span class="text-red-500" aria-hidden="true">*</span>
+            </label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-3.5 text-slate-400 pointer-events-none">
+                <i class="fas fa-code text-sm"></i>
+              </span>
+              <textarea
+                id="core_skills"
+                name="core_skills"
+                required
+                rows="4"
+                placeholder="請列出你的專長，例如：Python, React, 專案管理..."
+                class="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-10 pr-4 py-3 text-slate-800 placeholder-slate-400 transition resize-y min-h-[112px] focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/30 outline-none"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- Experience -->
+          <div>
+            <label for="experience_summary" class="block text-sm font-medium text-slate-700 mb-2">
+              經歷簡述
+              <span class="text-red-500" aria-hidden="true">*</span>
+            </label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-3.5 text-slate-400 pointer-events-none">
+                <i class="fas fa-list-check text-sm"></i>
+              </span>
+              <textarea
+                id="experience_summary"
+                name="experience_summary"
+                required
+                rows="7"
+                placeholder="簡單描述你過去的工作成就或負責項目..."
+                class="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-10 pr-4 py-3 text-slate-800 placeholder-slate-400 transition resize-y min-h-[168px] focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/30 outline-none"
+              ></textarea>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            id="submit-btn"
+            class="group w-full flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 active:scale-[0.99] disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed disabled:active:scale-100 text-white font-semibold py-3.5 px-6 shadow-lg shadow-indigo-300/50 transition-all duration-200"
+          >
+            <span id="btn-icon"><i class="fas fa-wand-magic-sparkles group-hover:scale-110 transition-transform"></i></span>
+            <span id="btn-text">生成專業履歷</span>
+          </button>
+        </form>
+
+        <p id="form-error" class="hidden mt-4 text-sm text-red-600 font-medium flex items-start gap-2" role="alert">
+          <i class="fas fa-circle-exclamation mt-0.5 shrink-0"></i>
+          <span id="form-error-text"></span>
+        </p>
+      </section>
+
+      <!-- Right: Preview -->
+      <section
+        id="preview-section"
+        class="bg-white rounded-xl shadow-lg shadow-card border border-slate-100/80 p-6 sm:p-8 flex flex-col min-h-[440px] lg:min-h-[540px]"
+      >
+        <div class="flex items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-50 to-violet-50 text-indigo-600 ring-1 ring-indigo-100/80 shrink-0">
+              <i class="fas fa-file-lines text-sm"></i>
+            </span>
+            <h2 class="text-lg font-semibold text-slate-800 truncate">履歷預覽</h2>
+          </div>
+          <button
+            type="button"
+            id="copy-btn"
+            class="hidden shrink-0 items-center gap-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-3 py-1.5 rounded-lg transition"
+          >
+            <span aria-hidden="true">📋</span>
+            <span id="copy-btn-label">複製履歷</span>
+          </button>
+        </div>
+
+        <!-- Empty State -->
+        <div
+          id="empty-state"
+          class="flex-1 flex flex-col items-center justify-center text-center py-14 px-6"
+        >
+          <div
+            class="float-icon w-28 h-28 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 border border-slate-200/80 flex items-center justify-center mb-6 text-slate-300 shadow-inner"
+          >
+            <i class="fas fa-file-circle-plus text-5xl"></i>
+          </div>
+          <p class="text-slate-600 text-base font-medium max-w-sm leading-relaxed">
+            請在左側填寫資訊，AI 將為您量身打造專業履歷
+          </p>
+          <p class="text-slate-400 text-sm mt-2 max-w-xs">
+            生成內容包含專業總結、核心技能與 STAR 原則工作經歷
+          </p>
+        </div>
+
+        <!-- Loading: Skeleton + spinner -->
+        <div
+          id="loading-state"
+          class="hidden flex-1 flex flex-col gap-5 py-1"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div class="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/80 border border-indigo-100">
+            <div class="relative w-10 h-10 shrink-0">
+              <div class="absolute inset-0 rounded-full border-[3px] border-indigo-100"></div>
+              <div class="absolute inset-0 rounded-full border-[3px] border-indigo-500 border-t-transparent animate-spin"></div>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-indigo-900">AI 正在撰寫您的履歷...</p>
+              <p class="text-xs text-indigo-600/80 mt-0.5">通常需要 15–40 秒，請稍候</p>
+            </div>
+          </div>
+          <div class="space-y-3 flex-1 rounded-xl bg-slate-50/80 border border-slate-100 p-5">
+            <div class="h-7 w-3/5 rounded-lg skeleton-shimmer"></div>
+            <div class="h-4 w-full rounded-md skeleton-shimmer" style="animation-delay: 0.1s"></div>
+            <div class="h-4 w-11/12 rounded-md skeleton-shimmer" style="animation-delay: 0.15s"></div>
+            <div class="h-4 w-4/5 rounded-md skeleton-shimmer" style="animation-delay: 0.2s"></div>
+            <div class="h-6 w-2/5 rounded-lg skeleton-shimmer mt-5"></div>
+            <div class="h-4 w-full rounded-md skeleton-shimmer"></div>
+            <div class="h-4 w-full rounded-md skeleton-shimmer"></div>
+            <div class="h-4 w-10/12 rounded-md skeleton-shimmer"></div>
+            <div class="h-4 w-2/3 rounded-md skeleton-shimmer"></div>
+          </div>
+        </div>
+
+        <!-- Result -->
+        <div id="result-state" class="hidden flex-1 flex flex-col min-h-0">
+          <p
+            id="preview-error"
+            class="hidden text-sm text-red-600 font-medium mb-4 flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-100"
+            role="alert"
+          >
+            <i class="fas fa-circle-exclamation mt-0.5 shrink-0"></i>
+            <span id="preview-error-text"></span>
+          </p>
+          <div class="flex-1 min-h-0 rounded-xl bg-slate-50/50 border border-slate-100 p-4 sm:p-5 overflow-hidden">
+            <article
+              id="resume-output"
+              class="prose prose-indigo max-w-none h-full overflow-y-auto max-h-[52vh] lg:max-h-[calc(100vh-240px)] pr-1 prose-headings:text-slate-900 prose-p:text-slate-600 prose-li:text-slate-600"
+            ></article>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="mt-8 sm:mt-10 text-center">
+      <p class="text-xs text-slate-400">
+        Powered by Google Gemini · 繁體中文 · STAR 原則
+      </p>
+    </footer>
+  </main>
+
+  <!-- Copy success toast -->
+  <div
+    id="copy-toast"
+    class="fixed bottom-6 left-1/2 z-50 flex items-center gap-2 bg-slate-900 text-white text-sm font-medium px-5 py-3 rounded-full shadow-2xl opacity-0 -translate-x-1/2 translate-y-3 pointer-events-none transition-all duration-300"
+    role="status"
+    aria-live="polite"
+  >
+    <i class="fas fa-check-circle text-emerald-400"></i>
+    複製成功
+  </div>
+
+  <script>
+    const form = document.getElementById('resume-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const btnIcon = document.getElementById('btn-icon');
+    const btnText = document.getElementById('btn-text');
+    const emptyState = document.getElementById('empty-state');
+    const loadingState = document.getElementById('loading-state');
+    const resultState = document.getElementById('result-state');
+    const resumeOutput = document.getElementById('resume-output');
+    const formError = document.getElementById('form-error');
+    const formErrorText = document.getElementById('form-error-text');
+    const previewError = document.getElementById('preview-error');
+    const previewErrorText = document.getElementById('preview-error-text');
+    const copyBtn = document.getElementById('copy-btn');
+    const copyBtnLabel = document.getElementById('copy-btn-label');
+    const copyToast = document.getElementById('copy-toast');
+
+    let lastMarkdown = '';
+    let copyToastTimer = null;
+
+    marked.setOptions({ breaks: true, gfm: true });
+
+    function hideFormError() {
+      formError.classList.add('hidden');
+    }
+
+    function showFormError(msg) {
+      formErrorText.textContent = msg;
+      formError.classList.remove('hidden');
+    }
+
+    function hidePreviewError() {
+      previewError.classList.add('hidden');
+    }
+
+    function showPreviewError(msg) {
+      previewErrorText.textContent = msg;
+      previewError.classList.remove('hidden');
+      resumeOutput.innerHTML = '';
+      copyBtn.classList.add('hidden');
+      copyBtn.classList.remove('inline-flex');
+      setView('result');
+    }
+
+    function setCopyBtnVisible(visible) {
+      copyBtn.classList.toggle('hidden', !visible);
+      copyBtn.classList.toggle('inline-flex', visible);
+    }
+
+    function setView(view) {
+      emptyState.classList.toggle('hidden', view !== 'empty');
+      loadingState.classList.toggle('hidden', view !== 'loading');
+      resultState.classList.toggle('hidden', view !== 'result');
+    }
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      if (isLoading) {
+        btnIcon.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btnText.textContent = 'AI 生成中...';
+        hideFormError();
+        hidePreviewError();
+        setCopyBtnVisible(false);
+        setView('loading');
+      } else {
+        btnIcon.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i>';
+        btnText.textContent = '生成專業履歷';
+      }
+    }
+
+    function showResult(markdown) {
+      lastMarkdown = markdown;
+      hidePreviewError();
+      resumeOutput.innerHTML = marked.parse(markdown);
+      resumeOutput.classList.remove('fade-up');
+      void resumeOutput.offsetWidth;
+      resumeOutput.classList.add('fade-up');
+      setCopyBtnVisible(true);
+      setView('result');
+    }
+
+    function showCopyToast() {
+      copyToast.classList.add('show');
+      if (copyToastTimer) clearTimeout(copyToastTimer);
+      copyToastTimer = setTimeout(() => copyToast.classList.remove('show'), 2500);
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideFormError();
+      hidePreviewError();
+
+      const payload = {
+        target_role: document.getElementById('target_role').value.trim(),
+        core_skills: document.getElementById('core_skills').value.trim(),
+        experience_summary: document.getElementById('experience_summary').value.trim(),
+      };
+
+      if (!payload.target_role || !payload.core_skills || !payload.experience_summary) {
+        showFormError('請完整填寫所有必填欄位。');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error('伺服器回應格式錯誤');
+        }
+
+        if (!res.ok || !data.success) {
+          showPreviewError(data.error || `生成失敗（${res.status}），請稍後再試。`);
+          return;
+        }
+
+        showResult(data.content);
+      } catch (err) {
+        const msg =
+          err.message === 'Failed to fetch'
+            ? '無法連線至伺服器，請確認網路或稍後再試。'
+            : err.message || '發生未知錯誤，請稍後再試。';
+        showPreviewError(msg);
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      if (!lastMarkdown) return;
+      try {
+        await navigator.clipboard.writeText(lastMarkdown);
+        copyBtnLabel.textContent = '複製成功';
+        showCopyToast();
+        setTimeout(() => {
+          copyBtnLabel.textContent = '複製履歷';
+        }, 2000);
+      } catch {
+        showPreviewError('複製失敗，請手動選取內容複製。');
+      }
+    });
+  </script>
+</body>
+</html>
